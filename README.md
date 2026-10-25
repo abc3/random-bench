@@ -685,6 +685,29 @@ SCALE=100 mise run tsbs-report
 - Keep ports 4000 to 4003 free. The storage and query roles reach the hot
   tier on 4001 even when `HOT_PORT` moves the listener.
 
+## Scatter and query admission
+
+`scripts/scatter_admission.sh` (driver: `scripts/scatter_admission.py`) tests
+whether a distributed (scattered) query gets around `max_concurrent_jobs`. It
+boots one local node from `SMOLQUERY_DIR` (compiled with `MIX_ENV=prod`),
+loads 400 single-insert files into `bench.events`, then runs 8 closed-loop
+clients for 60 s per arm, with `"distributed": false` and `true`, on a
+high-cardinality and a low-cardinality GROUP BY. It samples the beam process
+every 250 ms and reads `smolquery_query_engines_total` before and after.
+The result is in
+[results/2026-10-25-scatter-admission-overload.md](results/2026-10-25-scatter-admission-overload.md).
+
+```sh
+SMOLQUERY_DIR=~/dev/sq/smolquery mise run scatter-admission -- all   # load + 4 arms + tables
+mise run scatter-admission -- arms                                   # arms only, RUN_DIR keeps the data
+mise run scatter-admission -- serve                                  # boot over RUN_DIR and wait
+```
+
+Give an aggregate an alias and `ORDER BY` the alias. A positional
+`ORDER BY 2` is refused by the decomposer and the query silently answers from
+one engine, so the "distributed" arm would measure nothing. The driver aborts
+when the probe's `job.scatter` is not set on the distributed arm.
+
 ## Layout
 
 ```
@@ -699,6 +722,7 @@ k6/insert.js          load script, closed loop (VUS) or open loop (RATE)
 schemas/              smolquery table-create JSON, ClickHouse MergeTree DDL
 schemas/onebrc_stations.sql  the 413 stations and means, generated from tools/gen1brc
 scripts/              setup, run, sweep, stop, report, watch-pods, watch-metrics, loadgen
+scripts/scatter_admission.sh  one-node scatter vs admission test, with scatter_admission.py
 scripts/tsbs.exs      TSBS cpu-only against the VictoriaMetrics edge, per smolquery build
 scripts/report_html.exs  the HTML run report generator
 scripts/report/       its CSS and JS, inlined into every report
@@ -707,6 +731,7 @@ results/raw/          k6 and watch JSON per run (gitignored)
 results/raw-remote*/  the same, plus *.pods.json, for the remote arm
 results/raw-loadgen/  the in-region load generator's runs, plus *.metrics.sqlite3 per sweep
 results/raw-tsbs/     the TSBS load and query runs (gitignored)
+results/raw-scatter/  the scatter admission arms, JSON and 250 ms samples (gitignored)
 results/*.md          dated baseline writeups
 results/*.html        one charted report per load test, beside its writeup
 ```

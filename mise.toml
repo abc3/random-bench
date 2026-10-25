@@ -146,3 +146,13 @@ run = "elixir scripts/tsbs.exs run"
 [tasks.tsbs-report]
 description = "Markdown tables for LABELS at SCALE from results/raw-tsbs"
 run = "elixir scripts/tsbs.exs report"
+
+# ── scatter admission, one local node ────────────────────────────────────────
+
+[tasks.scatter-admission]
+description = "Boot one node, load bench.events, run the 8-client single vs distributed arms (SMOLQUERY_DIR required; usage: mise run scatter-admission -- [all|load|arms|serve|report])"
+run = "scripts/scatter_admission.sh"
+
+[tasks.scatter-admission-report]
+description = "Markdown tables for a finished scatter admission run (OUT=results/raw-scatter/<run>)"
+run = "scripts/scatter_admission.sh report"
